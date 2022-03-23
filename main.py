@@ -11,6 +11,11 @@ states = [
     ("list", "exclusive")
 ]
 
+def t_eof(t):
+    t.lexer.line += 1
+    t.lexer.index_col = 0
+    t.lexer.dics.append(t.lexer.dic)
+    t.lexer.dic = {}
 
 
 def t_list_DELIM(t):
@@ -21,9 +26,9 @@ def t_list_DELIM(t):
 def t_list_NUM(t):
     r'\d+'
     if t.lexer.boundaries == 0:
-        t.lexer.list_min = t.value
+        t.lexer.lista_min = int(t.value)
     else:
-        t.lexer.list_max = t.value
+        t.lexer.lista_max = int(t.value)
     t.lexer.boundaries += 1
     return t
 
@@ -31,7 +36,7 @@ def t_list_NUM(t):
 def t_cabecalho_LISTON(t):
     r'{'
     lexer.push_state("list")
-    lexer.if_list[-1] = 1
+    #lexer.if_list[-1] = 1
     return t
 
 
@@ -39,11 +44,9 @@ def t_list_LISTOFF(t):
     r'}'
     lexer.pop_state()
     if t.lexer.boundaries == 1:
-        t.lexer.list_indexes.append(-1)
-        t.lexer.list_indexes.append(t.lexer.list_min)
+        t.lexer.if_list[-1] = ((0,t.lexer.lista_min))
     else:
-        t.lexer.list_indexes.append(t.lexer.list_min)
-        t.lexer.list_indexes.append(t.lexer.list_max)
+        t.lexer.if_list[-1] = ((t.lexer.lista_min,t.lexer.lista_max))
     t.lexer.boundaries = 0
     return t
 
@@ -52,25 +55,38 @@ def t_cabecalho_NEWLINE(t):
     r'\n'
     lexer.pop_state()
     t.lexer.line += 1
+    t.lexer.index_col = 0
+    t.lexer.list_flag = -1 
     return t
 
 
 def t_cabecalho_DELIM(t):
     r','
+    if t.lexer.list_flag >= 0:
+        t.lexer.list_flag -= 1
+    else:
+        t.lexer.index_col += 1
+    
     return t
 
 
 def t_cabecalho_CAMPO(t):
     r'[^,\n{]+'
-    t.lexer.if_list.append(0)
+    t.lexer.if_list.append((1,1))
     t.lexer.cabecalho.append(t.value)
+    print(t.value,',',end="")
     return t
 
 
 def t_NUM(t):
     r'\d+(\.\d+)?'
     print("NUM: ", t.lexer.index_col)
-    t.lexer.dic[t.lexer.cabecalho[t.lexer.index_col]] = int(t.value)
+    if t.lexer.list_flag == -1:
+        t.lexer.dic[t.lexer.cabecalho[t.lexer.index_col]] = int(t.value)
+    else:
+        t.lexer.dic[t.lexer.cabecalho[t.lexer.index_col]].append(int(t.value)) 
+        print(t.lexer.dic[t.lexer.cabecalho[t.lexer.index_col]])
+
     return t
 
 
@@ -91,6 +107,7 @@ def t_NEWLINE(t):
     t.lexer.line += 1
     t.lexer.index_col = 0
     t.lexer.dics.append(t.lexer.dic)
+    t.lexer.list_flag = -1 
     t.lexer.dic = {}
     return t
 
@@ -103,13 +120,24 @@ def t_string_STRING(t):
 
 
 def t_CAMPO(t):
-    r'[^,\n]'
+    r'[^,\n]+'
+    t.lexer.dic[t.lexer.cabecalho[t.lexer.index_col]] = t.value
     return t
 
 
 def t_DELIM(t):
     r','
-    t.lexer.index_col += 1
+    if t.lexer.list_flag >= 0:
+        t.lexer.list_flag -= 1
+    else:
+        t.lexer.index_col += 1
+        islist = t.lexer.if_list[t.lexer.index_col]
+        if islist != (1,1):
+            min,max = islist
+            t.lexer.list_flag = max
+            print(t.lexer.index_col)
+            t.lexer.dic[t.lexer.cabecalho[t.lexer.index_col]] = []
+  
     return t
     
 t_INITIAL_ignore = " \t"
@@ -133,9 +161,11 @@ lexer.lista_min = 0
 lexer.lista_max = 0
 lexer.boundaries = 0
 lexer.list_indexes = []
-lexer.if_list = [] #0 -> não lista, 1 -> lista
+lexer.if_list = [] # (1,1) -> nao lista, else -> lista
 lexer.line = 0
 lexer.index_col = 0 #apontador da coluna atual
+lexer.list_flag = -1
+lexer.list = []
 #[3,5,-1,8]
 
 f = open("exemplo.csv", encoding="utf-8")
@@ -145,6 +175,9 @@ lexer.input(content)
 
 i = 0
 for tok in lexer:
+    print(lexer.if_list)
+    #print(lexer.list_flag)
+    print(tok)
     pass
 
 print(lexer.dics)
