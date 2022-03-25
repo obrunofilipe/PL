@@ -2,7 +2,7 @@ import re
 import ply.lex as lex
 
 
-tokens = ["STRINGON", "STRINGOFF", "NUM", "DELIM", "STRING", "CAMPO", "NEWLINE", "LISTON", "LISTOFF"]
+tokens = ["STRINGON", "STRINGOFF", "NUM", "DELIM", "STRING", "CAMPO", "NEWLINE", "LISTON", "LISTOFF", "OP"]
 #"FUNC"
 
 states = [
@@ -16,6 +16,15 @@ def t_eof(t):
     t.lexer.index_col = 0
     t.lexer.dics.append(t.lexer.dic)
     t.lexer.dic = {}
+
+
+def t_cabecalho_OP(t):
+    r'::[a-zA-Z]+'
+    campo = t.lexer.cabecalho[t.lexer.index_col]
+    operacao = t.value[2:len(t.value):1]
+    elem = campo + "_" + operacao
+    t.lexer.cabecalho[t.lexer.index_col] = elem
+    return t
 
 
 def t_list_DELIM(t):
@@ -45,8 +54,10 @@ def t_list_LISTOFF(t):
     lexer.pop_state()
     if t.lexer.boundaries == 1:
         t.lexer.if_list[-1] = ((0,t.lexer.lista_min))
+        t.lexer.list_flag = t.lexer.lista_min
     else:
         t.lexer.if_list[-1] = ((t.lexer.lista_min,t.lexer.lista_max))
+        t.lexer.list_flag = t.lexer.lista_max
     t.lexer.boundaries = 0
     return t
 
@@ -61,31 +72,36 @@ def t_cabecalho_NEWLINE(t):
 
 
 def t_cabecalho_DELIM(t):
-    r','
-    if t.lexer.list_flag >= 0:
+    r',|;|\||\t'
+    if t.lexer.list_flag > 1:
         t.lexer.list_flag -= 1
+
     else:
+        print(t.lexer.list_flag)
+        print(t.lexer.index_col)
         t.lexer.index_col += 1
     
     return t
 
 
 def t_cabecalho_CAMPO(t):
-    r'[^,\n{]+'
+    r'[^,;\t\|\n{]+'
+    print(t.lexer.index_col)
     t.lexer.if_list.append((1,1))
     t.lexer.cabecalho.append(t.value)
-    print(t.value,',',end="")
+    print(t.lexer.cabecalho[t.lexer.index_col])
     return t
 
 
 def t_NUM(t):
     r'\d+(\.\d+)?'
-    print("NUM: ", t.lexer.index_col)
     if t.lexer.list_flag == -1:
         t.lexer.dic[t.lexer.cabecalho[t.lexer.index_col]] = int(t.value)
     else:
-        t.lexer.dic[t.lexer.cabecalho[t.lexer.index_col]].append(int(t.value)) 
-        print(t.lexer.dic[t.lexer.cabecalho[t.lexer.index_col]])
+        print(t.lexer.cabecalho)
+        print(t.lexer.dic)
+        print(t.lexer.index_col)
+        t.lexer.dic[t.lexer.cabecalho[t.lexer.index_col]].append(int(t.value))
 
     return t
 
@@ -120,14 +136,15 @@ def t_string_STRING(t):
 
 
 def t_CAMPO(t):
-    r'[^,\n]+'
+    r'[^;,\t\|\n]+'
     t.lexer.dic[t.lexer.cabecalho[t.lexer.index_col]] = t.value
     return t
 
 
 def t_DELIM(t):
-    r','
-    if t.lexer.list_flag >= 0:
+    r',|;|\||\t'
+    print("Flag: ", t.lexer.list_flag)
+    if t.lexer.list_flag > 1:
         t.lexer.list_flag -= 1
     else:
         t.lexer.index_col += 1
@@ -135,9 +152,8 @@ def t_DELIM(t):
         if islist != (1,1):
             min,max = islist
             t.lexer.list_flag = max
-            print(t.lexer.index_col)
             t.lexer.dic[t.lexer.cabecalho[t.lexer.index_col]] = []
-  
+            print("HELLO")
     return t
     
 t_INITIAL_ignore = " \t"
@@ -175,59 +191,151 @@ lexer.input(content)
 
 i = 0
 for tok in lexer:
-    print(lexer.if_list)
-    #print(lexer.list_flag)
     print(tok)
-    pass
+    #pass
+
 
 print(lexer.dics)
-print(lexer.line)
+
 
 final = open("alunos.json", "w", encoding="utf-8")
 index = 0
 field = 0
 
 
+def mean(lista):
+    i = 0
+    total = 0
+    for elem in lista:
+        total += elem
+        i+=1
+    result = total/i
+    return result
 
-#for dict in dics:
-#    if index == 0:
-#        final.write("[\n")
-#        index += 1
-#    elif index != len(dics)-1:
-#        final.write("\t{\n")
-#        for fi in dict:
-#            if field == len(lexer.cabecalho)-1: #ultimo elemento
-#                final.write("\t\t")
-#                final.write("\"" + fi + "\": \"" + str(dict[fi]) + "\"")
-#                final.write("\n")
-#                field += 1
-#            else:
-#                final.write("\t\t")
-#                final.write("\"" + fi + "\": \"" + str(dict[fi]) + "\"")
-#                final.write(",\n")
-#                field += 1
-#        final.write("\t},\n")
-#        index += 1
-#        field = 0
-#    else:
-#        final.write("\t{\n")
-#        for fi in dict:
-#            if field == len(lexer.cabecalho)-1: #ultimo elemento
-#                print("Entrei aqui")
-#                final.write("\t\t")
-#                final.write("\"" + fi + "\": \"" + str(dict[fi]) + "\"")
-#                final.write("\n")
-#                field += 1
-#            else:
-#                final.write("\t\t")
-#                final.write("\"" + fi + "\": \"" + str(dict[fi]) + "\"")
-#                final.write(",\n")
-#                field += 1
-#        final.write("\t}")
-#        index += 1
-#        field = 0
-#        final.write("\n]")
-#
-#
+
+def mult(lista):
+    total = 1
+    for elem in lista:
+        total = total * elem
+    return total
+
+def count(lista):
+    return len(lista)
+
+
+
+possible_ops = ["sum", "mean", "mult", "max", "min", "sort"]
+
+op = 0
+
+def pick_op(mo):
+    if mo.group(1) == "sum":
+        dict[key] = sum(value)
+    elif mo.group(1) == "mean":
+        dict[key] = mean(value)
+    elif mo.group(1) == "mult":
+        dict[key] = mult(value)
+    elif mo.group(1) == "min":
+        dict[key] = min(value)
+    elif mo.group(1) == "max":
+        dict[key] = max(value)
+    elif mo.group(1) == "sort":
+        value.sort()
+        dict[key] = value
+    else:
+        pass
+
+for dict in lexer.dics:
+    for key,value in dict.items():
+        regex = r'[a-zA-Z0-9]+\_([a-zA-Z]+)'
+        mo = re.search(regex, key)
+        if mo:
+            pick_op(mo)
+
+
+
+for dict in lexer.dics:
+    if index == 0:
+        final.write("[\n")
+        final.write("\t{\n")
+        for fi in dict:
+            if field == len(lexer.cabecalho)-1: #ultimo elemento
+                final.write("\t\t")
+                if isinstance(dict[fi], str):
+                    final.write("\"" + fi + "\": \"" + str(dict[fi]) + "\"")
+                elif isinstance(dict[fi], int):
+                    final.write("\"" + fi + "\": " + str(dict[fi]) + "")
+                else:
+                    final.write("\"" + fi + "\": " + str(dict[fi]) + "")
+                final.write("\n")
+                field += 1
+            else:
+                final.write("\t\t")
+                if isinstance(dict[fi], str):
+                    final.write("\"" + fi + "\": \"" + str(dict[fi]) + "\"")
+                elif isinstance(dict[fi], int):
+                    final.write("\"" + fi + "\": " + str(dict[fi]) + "")
+                else:
+                    final.write("\"" + fi + "\": " + str(dict[fi]) + "")
+                final.write(",\n")
+                field += 1
+        final.write("\t},\n")
+        index += 1
+        field = 0
+    elif index != len(lexer.dics)-1:
+        final.write("\t{\n")
+        for fi in dict:
+            if field == len(lexer.cabecalho)-1: #ultimo elemento
+                final.write("\t\t")
+                if isinstance(dict[fi], str):
+                    final.write("\"" + fi + "\": \"" + str(dict[fi]) + "\"")
+                elif isinstance(dict[fi], int):
+                    final.write("\"" + fi + "\": " + str(dict[fi]) + "")
+                else:
+                    final.write("\"" + fi + "\": " + str(dict[fi]) + "")
+                final.write("\n")
+                field += 1
+            else:
+                final.write("\t\t")
+                if isinstance(dict[fi], str):
+                    final.write("\"" + fi + "\": \"" + str(dict[fi]) + "\"")
+                elif isinstance(dict[fi], int):
+                    final.write("\"" + fi + "\": " + str(dict[fi]) + "")
+                else:
+                    final.write("\"" + fi + "\": " + str(dict[fi]) + "")
+                final.write(",\n")
+                field += 1
+        final.write("\t},\n")
+        index += 1
+        field = 0
+    else:
+        final.write("\t{\n")
+        for fi in dict:
+            if field == len(lexer.cabecalho)-1: #ultimo elemento
+                final.write("\t\t")
+                if isinstance(dict[fi], str):
+                    final.write("\"" + fi + "\": \"" + str(dict[fi]) + "\"")
+                elif isinstance(dict[fi], int):
+                    final.write("\"" + fi + "\": " + str(dict[fi]) + "")
+                else:
+                    final.write("\"" + fi + "\": " + str(dict[fi]) + "")
+                final.write("\n")
+                field += 1
+            else:
+                final.write("\t\t")
+                if isinstance(dict[fi], str):
+                    final.write("\"" + fi + "\": \"" + str(dict[fi]) + "\"")
+                elif isinstance(dict[fi], int):
+                    final.write("\"" + fi + "\": " + str(dict[fi]) + "")
+                else:
+                    final.write("\"" + fi + "\": " + str(dict[fi]) + "")
+                final.write(",\n")
+                field += 1
+        final.write("\t}")
+        index += 1
+        field = 0
+        final.write("\n]")
+
+
 
 f.close()
