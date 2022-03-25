@@ -77,8 +77,6 @@ def t_cabecalho_DELIM(t):
         t.lexer.list_flag -= 1
 
     else:
-        print(t.lexer.list_flag)
-        print(t.lexer.index_col)
         t.lexer.index_col += 1
     
     return t
@@ -86,10 +84,8 @@ def t_cabecalho_DELIM(t):
 
 def t_cabecalho_CAMPO(t):
     r'[^,;\t\|\n{]+'
-    print(t.lexer.index_col)
     t.lexer.if_list.append((1,1))
     t.lexer.cabecalho.append(t.value)
-    print(t.lexer.cabecalho[t.lexer.index_col])
     return t
 
 
@@ -137,13 +133,17 @@ def t_string_STRING(t):
 
 def t_CAMPO(t):
     r'[^;,\t\|\n]+'
+    #if t.lexer.list_flag == -1:
     t.lexer.dic[t.lexer.cabecalho[t.lexer.index_col]] = t.value
+    #else:
+    #    t.lexer.dic[t.lexer.cabecalho[t.lexer.index_col]].append(t.value)
     return t
 
 
 def t_DELIM(t):
     r',|;|\||\t'
     print("Flag: ", t.lexer.list_flag)
+    print("Index: ", t.lexer.index_col)
     if t.lexer.list_flag > 1:
         t.lexer.list_flag -= 1
     else:
@@ -152,6 +152,7 @@ def t_DELIM(t):
         if islist != (1,1):
             min,max = islist
             t.lexer.list_flag = max
+            print("Vamos ter uma lista em:", t.lexer.cabecalho[t.lexer.index_col])
             t.lexer.dic[t.lexer.cabecalho[t.lexer.index_col]] = []
             print("HELLO")
     return t
@@ -162,46 +163,41 @@ def t_ANY_error(t):
     print("Illegal Character!")
     return t
 
+
+
+
+
+
 #define lex
 lexer = lex.lex()
 
-
-
-
 #My state
-lexer.dic = {}
-lexer.dics = []
-lexer.push_state("cabecalho") #começar a lista o cabeçalho
-lexer.cabecalho = []
-lexer.lista_min = 0
-lexer.lista_max = 0
-lexer.boundaries = 0
-lexer.list_indexes = []
-lexer.if_list = [] # (1,1) -> nao lista, else -> lista
-lexer.line = 0
-lexer.index_col = 0 #apontador da coluna atual
-lexer.list_flag = -1
-lexer.list = []
-#[3,5,-1,8]
+lexer.dic = {}                # estrutura de dados onde vai ser guardado cada registo, um dicionário
+lexer.dics = []               # estrutura de dados onde vão ser guardados todos os registos, uma lista de dicionários
+lexer.push_state("cabecalho") # começar a lista o cabeçalho
+lexer.cabecalho = []          # lista onde ficará armazenado o cabeçalho do ficheiro
+lexer.lista_min = 0           # número que indica o número mínimo de elementos da lista
+lexer.lista_max = 0           # número que indica o número máximo de elementos da lista
+lexer.boundaries = 0          # flag que diz se a lista especificada no cabecalho tem 1 ou 2 fronteiras       
+lexer.if_list = []            # (1,1) -> nao lista, else -> lista
+lexer.line = 0                # variável que indica quantas linhas existem no ficheiro
+lexer.index_col = 0           # apontador da coluna atual
+lexer.list_flag = -1          # 
 
-f = open("exemplo.csv", encoding="utf-8")
 
+#Ficheiro de leitura
+f = open("testes.csv", encoding="utf-8")
 content = f.read()
 lexer.input(content)
 
-i = 0
+#Ciclo principal da análise léxica do ficheiro csv.
+
 for tok in lexer:
     print(tok)
-    #pass
 
 
-print(lexer.dics)
 
-
-final = open("alunos.json", "w", encoding="utf-8")
-index = 0
-field = 0
-
+#Métodos que poderão ser aplicados às listas
 
 def mean(lista):
     i = 0
@@ -224,118 +220,79 @@ def count(lista):
 
 
 
-possible_ops = ["sum", "mean", "mult", "max", "min", "sort"]
+#operações sobre o dicionário. Aplicar às listas tudo o que for necessário aplicar. 
 
-op = 0
+def apply_op(dics):
+    for dict in dics:
+        for key,value in dict.items():
+            regex = r'[a-zA-Z0-9]+\_([a-zA-Z]+)'
+            mo = re.search(regex, key)
+            if mo:
+                if mo.group(1) == "sum":
+                    dict[key] = sum(value)
+                elif mo.group(1) == "mean":
+                    dict[key] = mean(value)
+                elif mo.group(1) == "mult":
+                    dict[key] = mult(value)
+                elif mo.group(1) == "min":
+                    dict[key] = min(value)
+                elif mo.group(1) == "max":
+                    dict[key] = max(value)
+                elif mo.group(1) == "sort":
+                    value.sort()
+                    dict[key] = value
+                else:
+                    pass
 
-def pick_op(mo):
-    if mo.group(1) == "sum":
-        dict[key] = sum(value)
-    elif mo.group(1) == "mean":
-        dict[key] = mean(value)
-    elif mo.group(1) == "mult":
-        dict[key] = mult(value)
-    elif mo.group(1) == "min":
-        dict[key] = min(value)
-    elif mo.group(1) == "max":
-        dict[key] = max(value)
-    elif mo.group(1) == "sort":
-        value.sort()
-        dict[key] = value
+# função que, recebendo o elemento a escrever no ficheiro verifica se é uma string para o escrever com aspas ou um número, ou lista, para o escrever
+# sem aspas 
+
+def check_type(elem, fi, final):
+    if isinstance(elem, str):
+        final.write("\"" + fi + "\": \"" + str(elem) + "\"")
+    elif isinstance(elem, int):
+        final.write("\"" + fi + "\": " + str(elem) + "")
     else:
-        pass
-
-for dict in lexer.dics:
-    for key,value in dict.items():
-        regex = r'[a-zA-Z0-9]+\_([a-zA-Z]+)'
-        mo = re.search(regex, key)
-        if mo:
-            pick_op(mo)
+        final.write("\"" + fi + "\": " + str(elem) + "")
 
 
+#funcao que itera os campos do dicionario e escreve os seus elementos no ficheiro .json, devidamente identados
 
-for dict in lexer.dics:
-    if index == 0:
-        final.write("[\n")
+def iterate_fields(dict, final, cabecalho):
+    field = 0
+    for fi in dict:
+        if field == len(cabecalho)-1: #ultimo elemento
+            final.write("\t\t")
+            check_type(dict[fi], fi, final)
+            final.write("\n")
+            field += 1
+        else:
+            final.write("\t\t")
+            check_type(dict[fi], fi, final)
+            final.write(",\n")
+            field += 1
+
+#função que, com o auxílio das funções acima definidas, escreve a estrutura base do ficheiro .json
+
+def dicToJson(dics, cabecalho):
+    index = 0
+    final = open("testes.json", "w", encoding="utf-8")
+    for dict in dics:
+        if index == 0:
+            final.write("[\n")
+        
         final.write("\t{\n")
-        for fi in dict:
-            if field == len(lexer.cabecalho)-1: #ultimo elemento
-                final.write("\t\t")
-                if isinstance(dict[fi], str):
-                    final.write("\"" + fi + "\": \"" + str(dict[fi]) + "\"")
-                elif isinstance(dict[fi], int):
-                    final.write("\"" + fi + "\": " + str(dict[fi]) + "")
-                else:
-                    final.write("\"" + fi + "\": " + str(dict[fi]) + "")
-                final.write("\n")
-                field += 1
-            else:
-                final.write("\t\t")
-                if isinstance(dict[fi], str):
-                    final.write("\"" + fi + "\": \"" + str(dict[fi]) + "\"")
-                elif isinstance(dict[fi], int):
-                    final.write("\"" + fi + "\": " + str(dict[fi]) + "")
-                else:
-                    final.write("\"" + fi + "\": " + str(dict[fi]) + "")
-                final.write(",\n")
-                field += 1
-        final.write("\t},\n")
+        iterate_fields(dict, final, cabecalho)
+        if index != len(dics)-1:
+            final.write("\t},\n")
+        else:
+            final.write("\t}")
+            final.write("\n]")
         index += 1
-        field = 0
-    elif index != len(lexer.dics)-1:
-        final.write("\t{\n")
-        for fi in dict:
-            if field == len(lexer.cabecalho)-1: #ultimo elemento
-                final.write("\t\t")
-                if isinstance(dict[fi], str):
-                    final.write("\"" + fi + "\": \"" + str(dict[fi]) + "\"")
-                elif isinstance(dict[fi], int):
-                    final.write("\"" + fi + "\": " + str(dict[fi]) + "")
-                else:
-                    final.write("\"" + fi + "\": " + str(dict[fi]) + "")
-                final.write("\n")
-                field += 1
-            else:
-                final.write("\t\t")
-                if isinstance(dict[fi], str):
-                    final.write("\"" + fi + "\": \"" + str(dict[fi]) + "\"")
-                elif isinstance(dict[fi], int):
-                    final.write("\"" + fi + "\": " + str(dict[fi]) + "")
-                else:
-                    final.write("\"" + fi + "\": " + str(dict[fi]) + "")
-                final.write(",\n")
-                field += 1
-        final.write("\t},\n")
-        index += 1
-        field = 0
-    else:
-        final.write("\t{\n")
-        for fi in dict:
-            if field == len(lexer.cabecalho)-1: #ultimo elemento
-                final.write("\t\t")
-                if isinstance(dict[fi], str):
-                    final.write("\"" + fi + "\": \"" + str(dict[fi]) + "\"")
-                elif isinstance(dict[fi], int):
-                    final.write("\"" + fi + "\": " + str(dict[fi]) + "")
-                else:
-                    final.write("\"" + fi + "\": " + str(dict[fi]) + "")
-                final.write("\n")
-                field += 1
-            else:
-                final.write("\t\t")
-                if isinstance(dict[fi], str):
-                    final.write("\"" + fi + "\": \"" + str(dict[fi]) + "\"")
-                elif isinstance(dict[fi], int):
-                    final.write("\"" + fi + "\": " + str(dict[fi]) + "")
-                else:
-                    final.write("\"" + fi + "\": " + str(dict[fi]) + "")
-                final.write(",\n")
-                field += 1
-        final.write("\t}")
-        index += 1
-        field = 0
-        final.write("\n]")
 
+#Métodos a aplicar depois da análise léxica e da conversão dos dados para uma lista de dicionários, um para cada linha do ficheiro.
 
+apply_op(lexer.dics)
+dicToJson(lexer.dics, lexer.cabecalho)
 
 f.close()
