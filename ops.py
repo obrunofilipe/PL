@@ -33,8 +33,6 @@ def apply_op(dics, cabecalho):
         for key,value in dict.items():
             regex = r'[a-zA-Z0-9]+\-\>([a-zA-Z]+)'
             mo = re.search(regex, key)
-            print(mo)
-            print(value)
             if mo:
                 if mo.group(1) == "sum":
                     dict[key] = sum(value)
