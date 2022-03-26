@@ -4,6 +4,7 @@
 def mean(lista):
     i = 0
     total = 0
+    print(lista)
     for elem in lista:
         total += elem
         i+=1
@@ -30,8 +31,10 @@ def apply_op(dics, cabecalho):
     for dict in dics:
         i = 0
         for key,value in dict.items():
-            regex = r'[a-zA-Z0-9]+\_([a-zA-Z]+)'
+            regex = r'[a-zA-Z0-9]+\-\>([a-zA-Z]+)'
             mo = re.search(regex, key)
+            print(mo)
+            print(value)
             if mo:
                 if mo.group(1) == "sum":
                     dict[key] = sum(value)
@@ -48,8 +51,8 @@ def apply_op(dics, cabecalho):
                     dict[key] = value
                 else:
                     a = mo.group(0)
-                    campo = a.split("_")[0]
-                    op = a.split("_")[1]
+                    campo = a.split("->")[0]
+                    op = a.split("->")[1]
                     print("Illegal function:", op)
                     cabecalho[i] = campo
             i += 1

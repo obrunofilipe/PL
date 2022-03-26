@@ -23,7 +23,7 @@ def t_cabecalho_OP(t):
     r'::[a-zA-Z]+'
     campo = t.lexer.cabecalho[t.lexer.index_col]
     operacao = t.value[2:len(t.value):1]
-    elem = campo + "_" + operacao
+    elem = campo + "->" + operacao
     t.lexer.cabecalho[t.lexer.index_col] = elem
     return t
 
@@ -89,8 +89,6 @@ def t_list_LISTOFF(t):
     return t
 
 
-
-
 # Regras definidas para o estado exlcusivo string
 
 def t_string_STRINGOFF(t):
@@ -111,9 +109,15 @@ def t_string_STRING(t):
 def t_NUM(t):
     r'\d+(\.\d+)?'
     if t.lexer.list_flag == -1:
-        t.lexer.dic[t.lexer.cabecalho[t.lexer.index_col]] = int(t.value)
+        if "." in t.value:
+            t.lexer.dic[t.lexer.cabecalho[t.lexer.index_col]] = float(t.value)
+        else:
+            t.lexer.dic[t.lexer.cabecalho[t.lexer.index_col]] = int(t.value)
     else:
-        t.lexer.dic[t.lexer.cabecalho[t.lexer.index_col]].append(int(t.value))
+        if "." in t.value:
+            t.lexer.dic[t.lexer.cabecalho[t.lexer.index_col]].append(float(t.value))
+        else:
+            t.lexer.dic[t.lexer.cabecalho[t.lexer.index_col]].append(int(t.value))
 
     return t
 

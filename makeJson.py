@@ -4,6 +4,8 @@
 def check_type(elem, final, cabecalho, field):
     if isinstance(elem, str):
         final.write("\"" + cabecalho[field] + "\": \"" + str(elem) + "\"")
+    elif isinstance(elem, float):
+        final.write("\"" + cabecalho[field] + "\": " + str(elem) + "")
     elif isinstance(elem, int):
         final.write("\"" + cabecalho[field] + "\": " + str(elem) + "")
     elif isinstance(elem,list):
@@ -47,7 +49,7 @@ def iterate_fields(dict, final, cabecalho):
 
 def dicToJson(dics, cabecalho):
     index = 0
-    final = open("alunos.json", "w", encoding="utf-8")
+    final = open("exemplo.json", "w", encoding="utf-8")
     for dict in dics:
         if index == 0:
             final.write("[\n")
