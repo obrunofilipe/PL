@@ -94,9 +94,7 @@ def t_NUM(t):
     if t.lexer.list_flag == -1:
         t.lexer.dic[t.lexer.cabecalho[t.lexer.index_col]] = int(t.value)
     else:
-        print(t.lexer.cabecalho)
-        print(t.lexer.dic)
-        print(t.lexer.index_col)
+        print("Elemento a que vou adicionar o valor", t.lexer.cabecalho[t.lexer.index_col])
         t.lexer.dic[t.lexer.cabecalho[t.lexer.index_col]].append(int(t.value))
 
     return t
@@ -133,10 +131,12 @@ def t_string_STRING(t):
 
 def t_CAMPO(t):
     r'[^;,\t\|\n]+'
-    #if t.lexer.list_flag == -1:
-    t.lexer.dic[t.lexer.cabecalho[t.lexer.index_col]] = t.value
-    #else:
-    #    t.lexer.dic[t.lexer.cabecalho[t.lexer.index_col]].append(t.value)
+    print("Flag em campo:", t.lexer.list_flag)
+    if t.lexer.list_flag == -1:
+        t.lexer.dic[t.lexer.cabecalho[t.lexer.index_col]] = t.value
+    else:
+        print(type(t.value))
+        t.lexer.dic[t.lexer.cabecalho[t.lexer.index_col]].append(t.value)
     return t
 
 
@@ -148,6 +148,7 @@ def t_DELIM(t):
         t.lexer.list_flag -= 1
     else:
         t.lexer.index_col += 1
+        print("IF LIST:", t.lexer.if_list)
         islist = t.lexer.if_list[t.lexer.index_col]
         if islist != (1,1):
             min,max = islist
@@ -155,6 +156,8 @@ def t_DELIM(t):
             print("Vamos ter uma lista em:", t.lexer.cabecalho[t.lexer.index_col])
             t.lexer.dic[t.lexer.cabecalho[t.lexer.index_col]] = []
             print("HELLO")
+        else:
+            t.lexer.list_flag = -1
     return t
     
 t_INITIAL_ignore = " \t"
@@ -244,14 +247,33 @@ def apply_op(dics):
                 else:
                     pass
 
+
 # função que, recebendo o elemento a escrever no ficheiro verifica se é uma string para o escrever com aspas ou um número, ou lista, para o escrever
 # sem aspas 
 
 def check_type(elem, fi, final):
+    print(elem)
+    print(type(elem))
     if isinstance(elem, str):
         final.write("\"" + fi + "\": \"" + str(elem) + "\"")
     elif isinstance(elem, int):
         final.write("\"" + fi + "\": " + str(elem) + "")
+    elif isinstance(elem,list):
+        final.write("\"" + fi + "\": [")
+        it = 0
+        for i in elem:
+            if it != len(elem)-1:
+                if isinstance(i,str):
+                    final.write("\"" + str(i) + "\", ")
+                else:
+                    final.write(str(i) + ", ")
+            else:
+                if isinstance(i,str):
+                    final.write("\"" + str(i) + "\"")
+                else:
+                    final.write(str(i))
+            it += 1
+        final.write("]")
     else:
         final.write("\"" + fi + "\": " + str(elem) + "")
 
@@ -291,6 +313,8 @@ def dicToJson(dics, cabecalho):
         index += 1
 
 #Métodos a aplicar depois da análise léxica e da conversão dos dados para uma lista de dicionários, um para cada linha do ficheiro.
+
+print("Dicionario:", lexer.dics)
 
 apply_op(lexer.dics)
 dicToJson(lexer.dics, lexer.cabecalho)
