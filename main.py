@@ -17,6 +17,7 @@ def t_eof(t):
     t.lexer.dics.append(t.lexer.dic)
     t.lexer.dic = {}
 
+# Regras definidas para o estado exclusivo cabecalho
 
 def t_cabecalho_OP(t):
     r'::[a-zA-Z]+'
@@ -26,39 +27,10 @@ def t_cabecalho_OP(t):
     t.lexer.cabecalho[t.lexer.index_col] = elem
     return t
 
-
-def t_list_DELIM(t):
-    r','
-    return t
-
-
-def t_list_NUM(t):
-    r'\d+'
-    if t.lexer.boundaries == 0:
-        t.lexer.lista_min = int(t.value)
-    else:
-        t.lexer.lista_max = int(t.value)
-    t.lexer.boundaries += 1
-    return t
-
-
 def t_cabecalho_LISTON(t):
     r'{'
     lexer.push_state("list")
     #lexer.if_list[-1] = 1
-    return t
-
-
-def t_list_LISTOFF(t):
-    r'}'
-    lexer.pop_state()
-    if t.lexer.boundaries == 1:
-        t.lexer.if_list[-1] = ((0,t.lexer.lista_min))
-        t.lexer.list_flag = t.lexer.lista_min
-    else:
-        t.lexer.if_list[-1] = ((t.lexer.lista_min,t.lexer.lista_max))
-        t.lexer.list_flag = t.lexer.lista_max
-    t.lexer.boundaries = 0
     return t
 
 
@@ -75,10 +47,8 @@ def t_cabecalho_DELIM(t):
     r',|;|\||\t'
     if t.lexer.list_flag > 1:
         t.lexer.list_flag -= 1
-
     else:
         t.lexer.index_col += 1
-    
     return t
 
 
@@ -89,28 +59,68 @@ def t_cabecalho_CAMPO(t):
     return t
 
 
-def t_NUM(t):
-    r'\d+(\.\d+)?'
-    if t.lexer.list_flag == -1:
-        t.lexer.dic[t.lexer.cabecalho[t.lexer.index_col]] = int(t.value)
+# Regras definidas para o estado exclusivo list
+
+def t_list_DELIM(t):
+    r','
+    return t
+
+
+def t_list_NUM(t):
+    r'\d+'
+    if t.lexer.boundaries == 0:
+        t.lexer.lista_min = int(t.value)
     else:
-        print("Elemento a que vou adicionar o valor", t.lexer.cabecalho[t.lexer.index_col])
-        t.lexer.dic[t.lexer.cabecalho[t.lexer.index_col]].append(int(t.value))
-
+        t.lexer.lista_max = int(t.value)
+    t.lexer.boundaries += 1
     return t
 
 
-def t_STRINGON(t):
-    r'"'
-    lexer.push_state("string")
+def t_list_LISTOFF(t):
+    r'}'
+    lexer.pop_state()
+    if t.lexer.boundaries == 1:
+        t.lexer.if_list[-1] = ((0,t.lexer.lista_min))
+        t.lexer.list_flag = t.lexer.lista_min
+    else:
+        t.lexer.if_list[-1] = ((t.lexer.lista_min,t.lexer.lista_max))
+        t.lexer.list_flag = t.lexer.lista_max
+    t.lexer.boundaries = 0
     return t
 
+
+
+
+# Regras definidas para o estado exlcusivo string
 
 def t_string_STRINGOFF(t):
     r'"'
     lexer.pop_state()
     return t
 
+
+def t_string_STRING(t):
+    r'[^"]+'
+    t.lexer.dic[t.lexer.cabecalho[t.lexer.index_col]] = t.value
+    return t
+
+
+
+# Estados definidos para os tokens no estado INITIAL
+
+def t_NUM(t):
+    r'\d+(\.\d+)?'
+    if t.lexer.list_flag == -1:
+        t.lexer.dic[t.lexer.cabecalho[t.lexer.index_col]] = int(t.value)
+    else:
+        t.lexer.dic[t.lexer.cabecalho[t.lexer.index_col]].append(int(t.value))
+
+    return t
+
+def t_STRINGON(t):
+    r'"'
+    lexer.push_state("string")
+    return t
 
 def t_NEWLINE(t):
     r'\n'
@@ -122,52 +132,40 @@ def t_NEWLINE(t):
     return t
 
 
-
-def t_string_STRING(t):
-    r'[^"]+'
-    t.lexer.dic[t.lexer.cabecalho[t.lexer.index_col]] = t.value
-    return t
-
-
 def t_CAMPO(t):
     r'[^;,\t\|\n]+'
-    print("Flag em campo:", t.lexer.list_flag)
     if t.lexer.list_flag == -1:
         t.lexer.dic[t.lexer.cabecalho[t.lexer.index_col]] = t.value
     else:
-        print(type(t.value))
         t.lexer.dic[t.lexer.cabecalho[t.lexer.index_col]].append(t.value)
     return t
 
 
 def t_DELIM(t):
     r',|;|\||\t'
-    print("Flag: ", t.lexer.list_flag)
-    print("Index: ", t.lexer.index_col)
     if t.lexer.list_flag > 1:
         t.lexer.list_flag -= 1
     else:
         t.lexer.index_col += 1
-        print("IF LIST:", t.lexer.if_list)
         islist = t.lexer.if_list[t.lexer.index_col]
         if islist != (1,1):
             min,max = islist
             t.lexer.list_flag = max
-            print("Vamos ter uma lista em:", t.lexer.cabecalho[t.lexer.index_col])
             t.lexer.dic[t.lexer.cabecalho[t.lexer.index_col]] = []
-            print("HELLO")
         else:
             t.lexer.list_flag = -1
     return t
-    
+
+# Caracteres que serão ignorados no estado INITIAL
+
 t_INITIAL_ignore = " \t"
+
+
+# Definição da regra de erro para qualquer estado
 
 def t_ANY_error(t):
     print("Illegal Character!")
     return t
-
-
-
 
 
 
@@ -189,14 +187,14 @@ lexer.list_flag = -1          #
 
 
 #Ficheiro de leitura
-f = open("testes.csv", encoding="utf-8")
+f = open("exemplo.csv", encoding="utf-8")
 content = f.read()
 lexer.input(content)
 
 #Ciclo principal da análise léxica do ficheiro csv.
 
 for tok in lexer:
-    print(tok)
+    pass
 
 
 
@@ -227,6 +225,7 @@ def count(lista):
 
 def apply_op(dics):
     for dict in dics:
+        i = 0
         for key,value in dict.items():
             regex = r'[a-zA-Z0-9]+\_([a-zA-Z]+)'
             mo = re.search(regex, key)
@@ -245,21 +244,24 @@ def apply_op(dics):
                     value.sort()
                     dict[key] = value
                 else:
-                    pass
+                    a = mo.group(0)
+                    campo = a.split("_")[0]
+                    op = a.split("_")[1]
+                    print("Illegal function:", op)
+                    lexer.cabecalho[i] = campo
+            i += 1
 
 
 # função que, recebendo o elemento a escrever no ficheiro verifica se é uma string para o escrever com aspas ou um número, ou lista, para o escrever
 # sem aspas 
 
-def check_type(elem, fi, final):
-    print(elem)
-    print(type(elem))
+def check_type(elem, final, cabecalho, field):
     if isinstance(elem, str):
-        final.write("\"" + fi + "\": \"" + str(elem) + "\"")
+        final.write("\"" + cabecalho[field] + "\": \"" + str(elem) + "\"")
     elif isinstance(elem, int):
-        final.write("\"" + fi + "\": " + str(elem) + "")
+        final.write("\"" + cabecalho[field] + "\": " + str(elem) + "")
     elif isinstance(elem,list):
-        final.write("\"" + fi + "\": [")
+        final.write("\"" + cabecalho[field] + "\": [")
         it = 0
         for i in elem:
             if it != len(elem)-1:
@@ -275,7 +277,7 @@ def check_type(elem, fi, final):
             it += 1
         final.write("]")
     else:
-        final.write("\"" + fi + "\": " + str(elem) + "")
+        final.write("\"" + cabecalho[field] + "\": " + str(elem) + "")
 
 
 #funcao que itera os campos do dicionario e escreve os seus elementos no ficheiro .json, devidamente identados
@@ -285,20 +287,21 @@ def iterate_fields(dict, final, cabecalho):
     for fi in dict:
         if field == len(cabecalho)-1: #ultimo elemento
             final.write("\t\t")
-            check_type(dict[fi], fi, final)
+            check_type(dict[fi], final, lexer.cabecalho, field)
             final.write("\n")
             field += 1
         else:
             final.write("\t\t")
-            check_type(dict[fi], fi, final)
+            check_type(dict[fi], final, lexer.cabecalho, field)
             final.write(",\n")
             field += 1
+    field += 1
 
 #função que, com o auxílio das funções acima definidas, escreve a estrutura base do ficheiro .json
 
 def dicToJson(dics, cabecalho):
     index = 0
-    final = open("testes.json", "w", encoding="utf-8")
+    final = open("alunos.json", "w", encoding="utf-8")
     for dict in dics:
         if index == 0:
             final.write("[\n")
